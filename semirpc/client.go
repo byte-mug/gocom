@@ -118,6 +118,7 @@ func (c *Client) input() error {
 		if err!=nil { return err }
 	}
 }
+func (c *Client) Close() error { return c.client.Close() }
 
 func (c *Client) doit(req Request,resp Response) (*clientObject,error) {
 	var co *clientObject
