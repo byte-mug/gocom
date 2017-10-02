@@ -39,7 +39,7 @@ func (s ServerError) Error() string {
 }
 
 type ServerHandler func(req Request,resp Response)
-type ErrorHandler  func(e ServerError,resp Response)
+type ErrorHandler  func(e ServerError,req Request,resp Response)
 
 type ServerCodec interface {
 	Close() error
@@ -101,7 +101,7 @@ func (s *serverWorkItem) handle() {
 	s.codec.Send(s.id,s.resp)
 }
 func (s *serverWorkItem) doerror() {
-	s.server.Error(SE_QueueOverflow,s.resp)
+	s.server.Error(SE_QueueOverflow,s.req,s.resp)
 	s.codec.Send(s.id,s.resp)
 }
 
