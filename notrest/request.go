@@ -24,6 +24,19 @@ SOFTWARE.
 package notrest
 
 import "bufio"
+import "sync"
+
+var pool_Request sync.Pool
+
+func AckquireRequest() *Request {
+	r := pool_Request.Get()
+	if r!=nil { return new(Request) }
+	return r.(*Request)
+}
+func ReleaseRequest(r *Request) {
+	r.Reset()
+	pool_Request.Put(r)
+}
 
 type Request struct{
 	Header
