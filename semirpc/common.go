@@ -1,5 +1,4 @@
-MIT License
-
+/*
 Copyright (c) 2017 Simon Schmidt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -19,3 +18,24 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+*/
+
+
+package semirpc
+
+import "bufio"
+import "errors"
+
+var EPipelineStall = errors.New("Pipeline-Stall")
+var EClosed = errors.New("Connection Closed")
+
+type Request interface{
+	ReadReq(r *bufio.Reader) error
+	WriteReq(w *bufio.Writer) error
+}
+
+type Response interface{
+	ReadResp(r *bufio.Reader) error
+	WriteResp(w *bufio.Writer) error
+}
+
