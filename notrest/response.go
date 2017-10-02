@@ -30,7 +30,7 @@ var pool_Response sync.Pool
 
 func AckquireResponse() *Response {
 	r := pool_Response.Get()
-	if r!=nil { return new(Response) }
+	if r==nil { return new(Response) }
 	return r.(*Response)
 }
 func ReleaseResponse(r *Response) {

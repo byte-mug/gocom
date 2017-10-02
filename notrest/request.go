@@ -30,7 +30,7 @@ var pool_Request sync.Pool
 
 func AckquireRequest() *Request {
 	r := pool_Request.Get()
-	if r!=nil { return new(Request) }
+	if r==nil { return new(Request) }
 	return r.(*Request)
 }
 func ReleaseRequest(r *Request) {

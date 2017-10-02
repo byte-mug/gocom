@@ -110,7 +110,7 @@ func (c *Client) input() error {
 			resp = co.resp
 		}
 		
-		if resp!=nil { resp = c.respmk() }
+		if resp==nil { resp = c.respmk() }
 		
 		err = c.client.Recv(resp)
 		
