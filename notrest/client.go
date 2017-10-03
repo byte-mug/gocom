@@ -30,14 +30,27 @@ func ackquireFunc() semirpc.Response {
 	return AckquireResponse()
 }
 
+type rpcClient interface{
+	Close() error
+	Do(req semirpc.Request,resp semirpc.Response) error
+	DoTimeout(req semirpc.Request,resp semirpc.Response, timeout <- chan time.Time) error
+	DoAsyncSupport(req semirpc.Request,resp semirpc.Response, errch chan error)
+}
+
 type Client struct{
-	client *semirpc.Client
+	client rpcClient
 }
 func NewClient(cli semirpc.ClientCodec) *Client {
 	return &Client{
 		client: semirpc.NewClient(cli, ackquireFunc),
 	}
 }
+func NewARClient(cli *semirpc.ARClient) *Client {
+	return &Client{
+		client: cli,
+	}
+}
+
 
 func (c *Client) Close() error { return c.client.Close() }
 
