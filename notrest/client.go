@@ -25,7 +25,6 @@ package notrest
 
 import "github.com/byte-mug/gocom/semirpc"
 import "time"
-import "sync"
 
 func ackquireFunc() semirpc.Response {
 	return AckquireResponse()
@@ -33,7 +32,6 @@ func ackquireFunc() semirpc.Response {
 
 type Client struct{
 	client *semirpc.Client
-	once sync.Once
 }
 func NewClient(cli semirpc.ClientCodec) *Client {
 	return &Client{
