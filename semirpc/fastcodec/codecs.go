@@ -27,6 +27,7 @@ import "github.com/valyala/batcher"
 import "github.com/pierrec/lz4"
 import "github.com/byte-mug/gocom/semirpc"
 import "io"
+import "bytes"
 import "bufio"
 import "sync"
 import "encoding/binary"
@@ -34,31 +35,33 @@ import "time"
 
 var pool_workItem sync.Pool
 type workItem struct{
-	id   uint64
-	resp semirpc.Response
-	req  semirpc.Request
-	done chan error
+	tmpbuf   [16]byte
+	buf      bytes.Buffer
+	bwri     *bufio.Writer // Adapter
 }
+func (wi *workItem) writeId(id uint64) {
+	l := binary.PutUvarint(wi.tmpbuf[:], id)
+	wi.buf.Write(wi.tmpbuf[:l])
+}
+
 func acquireWI() *workItem {
 	wi := pool_workItem.Get()
-	if wi==nil { return &workItem{done:make(chan error,1)} }
+	if wi==nil {
+		nwi := &workItem{}
+		nwi.bwri = bufio.NewWriterSize(&(nwi.buf),128)
+		return nwi
+	}
 	return wi.(*workItem)
 }
 func releaseWI(wi *workItem) {
-	wi.id   = 0
-	wi.resp = nil
-	wi.req  = nil
-	select {
-	case <-wi.done:
-	default:
-	}
+	wi.bwri.Flush()
+	wi.buf.Reset()
 	pool_workItem.Put(wi)
 }
 
 type PlainCodec struct{
 	closer  io.Closer
 	reader  *bufio.Reader
-	writer  *bufio.Writer
 	lzrd    *lz4.Reader
 	lzwr    *lz4.Writer
 	buffer  []byte
@@ -71,7 +74,6 @@ func (pc *PlainCodec) initialize(c io.ReadWriteCloser) {
 	
 	pc.closer = c
 	pc.reader = bufio.NewReader(rd)
-	pc.writer = bufio.NewWriter(wri)
 	pc.lzrd   = rd
 	pc.lzwr   = wri
 	pc.buffer = make([]byte,16)
@@ -85,29 +87,13 @@ func (c *PlainCodec) Close() error {
 	return c.closer.Close()
 }
 
-
-func (c *PlainCodec) writeItem(wi *workItem) error{
-	l := binary.PutUvarint(c.buffer, wi.id)
-	_,e := c.writer.Write(c.buffer[:l])
-	if e!=nil { return e }
-	if wi.resp!=nil {
-		e = wi.resp.WriteResp(c.writer)
-	} else if wi.req!=nil {
-		e = wi.req.WriteReq(c.writer)
-	}
-	return e
-}
 func (c *PlainCodec) write(batch []interface{}) {
 	c.mutex.Lock(); defer c.mutex.Unlock()
 	for _,el := range batch {
 		wi := el.(*workItem)
-		e := c.writeItem(wi)
-		select {
-		case wi.done <- e:
-		default:
-		}
+		c.lzwr.Write(wi.buf.Bytes())
+		releaseWI(wi)
 	}
-	c.writer.Flush()
 	c.lzwr.Flush()
 }
 func (c *PlainCodec) RecvId() (uint64,error) {
@@ -127,16 +113,15 @@ type ServerCodec struct{
 }
 func (c *ServerCodec) Send(id uint64,r semirpc.Response) error {
 	wi := acquireWI()
-	defer releaseWI(wi)
-	wi.id = id
-	wi.resp = r
+	wi.writeId(id)
+	e := r.WriteResp(wi.bwri)
+	wi.bwri.Flush()
 	c.coalesc.Push(wi)
-	return <- wi.done
+	return e
 }
 func (c *ServerCodec) Recv(r semirpc.Request) error {
 	return r.ReadReq(c.reader)
 }
-
 
 
 
@@ -151,11 +136,11 @@ type ClientCodec struct{
 }
 func (c *ClientCodec) Send(id uint64,r semirpc.Request) error {
 	wi := acquireWI()
-	defer releaseWI(wi)
-	wi.id = id
-	wi.req = r
+	wi.writeId(id)
+	e := r.WriteReq(wi.bwri)
+	wi.bwri.Flush()
 	c.coalesc.Push(wi)
-	return <- wi.done
+	return e
 }
 func (c *ClientCodec) Recv(r semirpc.Response) error {
 	return r.ReadResp(c.reader)
