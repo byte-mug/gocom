@@ -92,13 +92,38 @@ func (r *Header) SetHeaderKV(k,v string) {
 			r.headKV[i][1] = h[:len(v)]
 		}
 	} else {
-		nk = r.cbstr(v)
+		nk = r.cbstr(k)
 		nv := r.cbstr(v)
 		lowerize(nk)
 		r.headKV = append(r.headKV,[2][]byte{nk,nv})
 		hix[sum] = len(r.headKV)-1
 	}
 }
+func (r *Header) SetIntHeader(k string, i int) {
+	nk := append(r.tempbuf[:0],k...)
+	lowerize(nk)
+	sum := md5.Sum(nk)
+	hix := r.headIdx.init()
+	v := encodeInt(r.tempbuf[:],i)
+	
+	if i,ok := hix[sum] ; ok {
+		h := r.headKV[i][1]
+		if len(h)<len(v) {
+			r.headKV[i][1] = r.cbbin(v)
+		} else {
+			copy(h,v)
+			r.headKV[i][1] = h[:len(v)]
+		}
+	} else {
+		nk = r.cbstr(k)
+		nv := r.cbbin(v)
+		lowerize(nk)
+		r.headKV = append(r.headKV,[2][]byte{nk,nv})
+		hix[sum] = len(r.headKV)-1
+	}
+}
+
+
 func (r *Header) GetHeader(k []byte) []byte {
 	if r.headIdx==nil { return nil }
 	nk := append(r.tempbuf[:0],k...)
